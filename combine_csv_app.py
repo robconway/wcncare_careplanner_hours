@@ -2,13 +2,14 @@ import streamlit as st
 import pandas as pd
 import re
 
-st.title("Enhanced CSV Combiner with Name Extraction and Filtering")
+st.title("CSV Combiner with Name Extraction and Row Filtering")
 
 st.write("""
 Upload multiple CSV timesheet files. The app will:
 - Extract the name from each filename and add it as the first column.
-- Remove rows containing the word 'TOTAL'.
-- Move rows containing 'Time off' to a separate CSV file.
+- Remove rows containing the word 'TOTAL' or 'Time off' from the main CSV.
+- Move 'Time off' rows to a separate CSV file.
+- Move 'TOTAL' rows to another separate CSV file.
 """)
 
 uploaded_files = st.file_uploader("Choose CSV files", type="csv", accept_multiple_files=True)
@@ -20,6 +21,7 @@ def extract_name(filename):
 if uploaded_files:
     combined_data = []
     timeoff_data = []
+    total_data = []
 
     for file in uploaded_files:
         name = extract_name(file.name)
@@ -28,40 +30,17 @@ if uploaded_files:
         # Add name column
         df.insert(0, "Name", name)
 
-        # Extract time off rows
+        # Extract 'Time off' rows
         timeoff_rows = df[df.apply(lambda row: row.astype(str).str.contains("Time off", case=False).any(), axis=1)]
         if not timeoff_rows.empty:
             timeoff_data.append(timeoff_rows)
 
-        # Remove rows containing 'TOTAL' or 'Time off'
+        # Extract 'TOTAL' rows
+        total_rows = df[df.apply(lambda row: row.astype(str).str.contains("TOTAL", case=False).any(), axis=1)]
+        if not total_rows.empty:
+            total_data.append(total_rows)
+
+        # Remove 'Time off' and 'TOTAL' rows from main data
         df = df[~df.apply(lambda row: row.astype(str).str.contains("TOTAL|Time off", case=False).any(), axis=1)]
 
-        combined_data.append(df)
-
-    combined_df = pd.concat(combined_data, ignore_index=True)
-
-    st.write("Preview of Combined Data (excluding 'TOTAL' and 'Time off' rows):")
-    st.dataframe(combined_df.head())
-
-    def convert_df(df):
-        return df.to_csv(index=False).encode('utf-8')
-
-    csv_combined = convert_df(combined_df)
-
-    st.download_button(
-        label="Download Combined CSV",
-        data=csv_combined,
-        file_name="combined_timesheets.csv",
-        mime="text/csv"
-    )
-
-    if timeoff_data:
-        timeoff_df = pd.concat(timeoff_data, ignore_index=True)
-        csv_timeoff = convert_df(timeoff_df)
-
-        st.download_button(
-            label="Download Time Off CSV",
-            data=csv_timeoff,
-            file_name="timeoff.csv",
-            mime="text/csv"
-        )
+       
