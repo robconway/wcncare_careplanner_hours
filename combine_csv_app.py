@@ -1,46 +1,29 @@
-import streamlit as st
 import pandas as pd
 import re
 
-st.title("CSV Combiner with Name Extraction and Row Filtering")
+# Load the uploaded CSV file
+file_path = "Timesheet_for_Norma Zhonga_2025-06-25_2025-07-24.csv"
+df = pd.read_csv(file_path)
 
-st.write("""
-Upload multiple CSV timesheet files. The app will:
-- Extract the name from each filename and add it as the first column.
-- Remove rows containing the word 'TOTAL' or 'Time off' from the main CSV.
-- Move 'Time off' rows to a separate CSV file.
-- Move 'TOTAL' rows to another separate CSV file.
-""")
+# Extract name from filename
+match = re.search(r"Timesheet_for_(.*?)_\d{4}-\d{2}-\d{2}", file_path)
+name = match.group(1) if match else "Unknown"
 
-uploaded_files = st.file_uploader("Choose CSV files", type="csv", accept_multiple_files=True)
+# Add name column
+df.insert(0, "Name", name)
 
-def extract_name(filename):
-    match = re.search(r"Timesheet_for_(.*?)_\d{4}-\d{2}-\d{2}", filename)
-    return match.group(1) if match else "Unknown"
+# Identify rows containing 'Time off'
+timeoff_df = df[df.apply(lambda row: row.astype(str).str.contains("Time off", case=False).any(), axis=1)]
 
-if uploaded_files:
-    combined_data = []
-    timeoff_data = []
-    total_data = []
+# Identify rows containing 'TOTAL'
+totals_df = df[df.apply(lambda row: row.astype(str).str.contains("TOTAL", case=False).any(), axis=1)]
 
-    for file in uploaded_files:
-        name = extract_name(file.name)
-        df = pd.read_csv(file)
+# Remove 'Time off' and 'TOTAL' rows from main dataframe
+combined_df = df[~df.apply(lambda row: row.astype(str).str.contains("TOTAL|Time off", case=False).any(), axis=1)]
 
-        # Add name column
-        df.insert(0, "Name", name)
+# Save the dataframes to separate CSV files
+combined_df.to_csv("combined_timesheets.csv", index=False)
+timeoff_df.to_csv("timeoff.csv", index=False)
+totals_df.to_csv("totals.csv", index=False)
 
-        # Extract 'Time off' rows
-        timeoff_rows = df[df.apply(lambda row: row.astype(str).str.contains("Time off", case=False).any(), axis=1)]
-        if not timeoff_rows.empty:
-            timeoff_data.append(timeoff_rows)
-
-        # Extract 'TOTAL' rows
-        total_rows = df[df.apply(lambda row: row.astype(str).str.contains("TOTAL", case=False).any(), axis=1)]
-        if not total_rows.empty:
-            total_data.append(total_rows)
-
-        # Remove 'Time off' and 'TOTAL' rows from main data
-        df = df[~df.apply(lambda row: row.astype(str).str.contains("TOTAL|Time off", case=False).any(), axis=1)]
-
-       
+print("Files created: combined_timesheets.csv, timeoff.csv, totals.csv")
