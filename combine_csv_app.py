@@ -8,7 +8,7 @@ st.write("""
 Upload multiple CSV timesheet files. The app will:
 - Extract the name from each filename and add it as the first column.
 - Remove rows containing the word 'TOTAL'.
-- Create a separate CSV file for rows containing 'Time off'.
+- Move rows containing 'Time off' to a separate CSV file.
 """)
 
 uploaded_files = st.file_uploader("Choose CSV files", type="csv", accept_multiple_files=True)
@@ -33,14 +33,14 @@ if uploaded_files:
         if not timeoff_rows.empty:
             timeoff_data.append(timeoff_rows)
 
-        # Remove rows containing 'TOTAL'
-        df = df[~df.apply(lambda row: row.astype(str).str.contains("TOTAL", case=False).any(), axis=1)]
+        # Remove rows containing 'TOTAL' or 'Time off'
+        df = df[~df.apply(lambda row: row.astype(str).str.contains("TOTAL|Time off", case=False).any(), axis=1)]
 
         combined_data.append(df)
 
     combined_df = pd.concat(combined_data, ignore_index=True)
 
-    st.write("Preview of Combined Data (excluding 'TOTAL' rows):")
+    st.write("Preview of Combined Data (excluding 'TOTAL' and 'Time off' rows):")
     st.dataframe(combined_df.head())
 
     def convert_df(df):
